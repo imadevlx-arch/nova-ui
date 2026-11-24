@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nova Player</string>
+    <style name="Theme.NovaPlayer" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/nova_abyss</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+    <color name="nova_abyss">#FF050B1C</color>
+</resources>

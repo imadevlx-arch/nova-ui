@@ -1,0 +1,78 @@
+name: Build Nova Player APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "player/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - ".github/workflows/build-player.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nova-player
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      HAS_RELEASE_KEY: ${{ secrets.NOVA_KEYSTORE_B64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Préparer la clé de release
+        if: env.HAS_RELEASE_KEY == 'true'
+        env:
+          KS_B64: ${{ secrets.NOVA_KEYSTORE_B64 }}
+        run: |
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          echo "NOVA_KEYSTORE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+
+      - name: Compiler l'APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: 0.1.${{ github.run_number }}
+          NOVA_ACTIVATION_URL: ${{ vars.NOVA_ACTIVATION_URL }}
+          NOVA_KEYSTORE_PASSWORD: ${{ secrets.NOVA_KEYSTORE_PASSWORD }}
+          NOVA_KEY_ALIAS: ${{ secrets.NOVA_KEY_ALIAS }}
+          NOVA_KEY_PASSWORD: ${{ secrets.NOVA_KEY_PASSWORD }}
+        run: |
+          gradle :player:assembleRelease --stacktrace
+          cp player/build/outputs/apk/release/player-release.apk nova-player.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nova-player-apk
+          path: nova-player.apk
+
+      # Tag glissant : l'URL Downloader reste la même à chaque version.
+      - name: Déplacer le tag nova-player-latest
+        run: |
+          git tag -f nova-player-latest
+          git push -f origin nova-player-latest
+
+      - name: Publier la release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nova-player-latest
+          name: Nova Player (dernière version) — 0.1.${{ github.run_number }}
+          body: |
+            Downloader : https://github.com/${{ github.repository }}/releases/download/nova-player-latest/nova-player.apk
+          files: nova-player.apk
+          make_latest: false
+          prerelease: false

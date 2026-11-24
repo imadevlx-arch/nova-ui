@@ -3,6 +3,10 @@ name: Build APK
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "player/**"
+      - "backend/**"
+      - ".github/workflows/build-player.yml"
   workflow_dispatch:
 
 permissions:

@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "nova-ui"
 include(":app")
+include(":player")
