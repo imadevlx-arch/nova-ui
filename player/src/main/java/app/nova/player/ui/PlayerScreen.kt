@@ -71,6 +71,8 @@ fun PlayerScreen(vm: AppViewModel, request: PlayRequest) {
     var overlayTick by remember { mutableIntStateOf(0) }
     var showOverlay by remember { mutableStateOf(true) }
     val retries = remember { intArrayOf(0) }
+    // URL réellement lue : un flux live .ts refusé est retenté en .m3u8 (HLS), format accepté par certains panels seulement.
+    var url by remember(request.url) { mutableStateOf(request.url) }
 
     val player = remember {
         val dataSource = OkHttpDataSource.Factory(Http.client).setUserAgent(Http.USER_AGENT)
@@ -94,9 +96,13 @@ fun PlayerScreen(vm: AppViewModel, request: PlayRequest) {
                 if (e.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
                     player.seekToDefaultPosition(); player.prepare(); return
                 }
-                if (retries[0] < 3) {
+                if (retries[0] < 2) {
                     retries[0]++
                     player.prepare()
+                    return
+                }
+                if (url.endsWith(".ts") && "/live/" in url) {
+                    url = url.removeSuffix(".ts") + ".m3u8"
                     return
                 }
                 error = when (e.errorCode) {
@@ -114,12 +120,12 @@ fun PlayerScreen(vm: AppViewModel, request: PlayRequest) {
     }
 
     // Nouvelle URL (premier lancement ou zapping)
-    LaunchedEffect(request.url) {
+    LaunchedEffect(url) {
         error = null
         retries[0] = 0
-        player.setMediaItem(MediaItem.fromUri(request.url))
+        player.setMediaItem(MediaItem.fromUri(url))
         player.prepare()
-        overlayTick++
+        if (url == request.url) overlayTick++
     }
 
     // Bandeau d'info : visible 4 s après chaque changement

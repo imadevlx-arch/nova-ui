@@ -2,7 +2,18 @@ package app.nova.player.ui
 
 import android.graphics.Bitmap
 import android.view.KeyEvent as AndroidKeyEvent
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -42,10 +53,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.tv.material3.Border
-import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Glow
-import androidx.tv.material3.Surface
 import app.nova.player.ui.theme.NovaColors
 import app.nova.player.ui.theme.NovaFonts
 import app.nova.player.ui.theme.NovaMotion
@@ -58,7 +65,41 @@ val MutedStyle = BodyStyle.copy(color = NovaColors.TextMuted, fontSize = 13.sp)
 val TitleStyle = TextStyle(fontFamily = NovaFonts.Display, fontSize = 34.sp, color = NovaColors.TextPrimary)
 val LabelStyle = TextStyle(fontFamily = NovaFonts.Body, fontSize = 14.sp, color = NovaColors.TextPrimary)
 
-/** Bouton / pastille focusable. Focus = contour jade ; sélection = fond jade discret. */
+/**
+ * Surface cliquable universelle : télécommande (focus + OK) ET tactile (tap).
+ * Les Surface de androidx.tv ne gèrent pas le toucher, d'où ce composant maison.
+ */
+@Composable
+fun Pressable(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(14.dp),
+    color: Color = NovaColors.GlassFill,
+    focusedColor: Color = NovaColors.Sapphire.copy(alpha = 0.55f),
+    focusedScale: Float = 1.04f,
+    glow: Boolean = false,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        when { pressed -> NovaMotion.PressScale; focused -> focusedScale; else -> 1f },
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 500f), label = "scale",
+    )
+    Box(
+        modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .then(if (glow && focused) Modifier.shadow(18.dp, shape, ambientColor = NovaColors.Jade, spotColor = NovaColors.Jade) else Modifier)
+            .clip(shape)
+            .background(if (focused) focusedColor else color)
+            .border(if (focused) 2.dp else 1.dp, if (focused) NovaColors.Jade else NovaColors.GlassStroke, shape)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+        content = content,
+    )
+}
+
+/** Bouton / pastille. Focus = contour jade ; sélection = fond jade discret. */
 @Composable
 fun NovaButton(
     text: String,
@@ -69,32 +110,24 @@ fun NovaButton(
     corner: Dp = 14.dp,
     padding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
 ) {
-    val shape = RoundedCornerShape(corner)
     val base = when {
         primary -> NovaColors.Jade
         selected -> NovaColors.Jade.copy(alpha = 0.14f)
         else -> NovaColors.GlassFill
     }
     val textColor = if (primary) NovaColors.Abyss else if (selected) NovaColors.Jade else NovaColors.TextPrimary
-    Surface(
+    Pressable(
         onClick = onClick,
         modifier = modifier,
-        shape = ClickableSurfaceDefaults.shape(shape),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = base,
-            focusedContainerColor = if (primary) NovaColors.Jade else NovaColors.Sapphire.copy(alpha = 0.55f),
-            pressedContainerColor = base,
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f, pressedScale = NovaMotion.PressScale),
-        border = ClickableSurfaceDefaults.border(
-            border = Border(BorderStroke(1.dp, NovaColors.GlassStroke), shape = shape),
-            focusedBorder = Border(BorderStroke(2.dp, NovaColors.Jade), shape = shape),
-        ),
+        shape = RoundedCornerShape(corner),
+        color = base,
+        focusedColor = if (primary) NovaColors.Jade else NovaColors.Sapphire.copy(alpha = 0.55f),
     ) {
         BasicText(
             text,
             style = LabelStyle.copy(color = textColor, fontFamily = NovaFonts.Body),
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(padding),
         )
     }
