@@ -34,12 +34,14 @@ sealed interface Screen {
     data class Player(val request: PlayRequest) : Screen
 }
 
-enum class Section(val label: String, val kind: Kind?) {
-    LIVE("Direct", Kind.LIVE),
-    EVENTS("Événements", null),
-    MOVIE("Films", Kind.MOVIE),
-    SERIES("Séries", Kind.SERIES),
-    RECENTS("Récents", null),
+/** Onglets principaux (HOME, LIVE, MOVIE, SERIES) + pages « Tout voir » (EVENTS, RECENTS) ouvertes depuis l'accueil. */
+enum class Section(val label: String, val kind: Kind?, val tab: Boolean) {
+    HOME("Accueil", null, true),
+    LIVE("Direct", Kind.LIVE, true),
+    MOVIE("Films", Kind.MOVIE, true),
+    SERIES("Séries", Kind.SERIES, true),
+    EVENTS("Événements", null, false),
+    RECENTS("Reprendre", null, false),
 }
 
 /**
@@ -71,7 +73,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var catalog: Catalog? = null
 
     // Accueil
-    var section by mutableStateOf(Section.LIVE); private set
+    var section by mutableStateOf(Section.HOME); private set
     val kind: Kind get() = section.kind ?: Kind.LIVE
     var categories by mutableStateOf<List<Category>>(emptyList()); private set
     var selectedCategory by mutableStateOf<String?>(null); private set
@@ -87,6 +89,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // Récents
     var recents by mutableStateOf<List<ResumeEntry>>(emptyList()); private set
+
+    // Accueil : tendances
+    var trendingMovies by mutableStateOf<List<Item>>(emptyList()); private set
+    var newSeries by mutableStateOf<List<Item>>(emptyList()); private set
+    private var trendingJob: Job? = null
 
     // Événements
     var events by mutableStateOf<List<EventRow>>(emptyList()); private set
@@ -167,6 +174,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         items = emptyList()
         categories = emptyList()
         events = emptyList()
+        trendingMovies = emptyList()
+        newSeries = emptyList()
         screen = Screen.Login
     }
 
@@ -174,9 +183,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         account = a
         catalog = c
         screen = Screen.Home
-        refreshRecents()
-        // Des contenus en cours ? On ouvre directement sur « Récents ».
-        selectSection(if (recents.isNotEmpty()) Section.RECENTS else Section.LIVE, force = true)
+        selectSection(Section.HOME, force = true)
     }
 
     // ---- Sections ----
@@ -187,6 +194,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         selectedCategory = null
         openSeries = null
         when (s) {
+            Section.HOME -> loadHome()
             Section.RECENTS -> refreshRecents()
             Section.EVENTS -> loadEvents()
             else -> reload()
@@ -196,7 +204,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun reload() {
         val c = catalog ?: return
         if (section.kind == null) {
-            if (section == Section.EVENTS) loadEvents(force = true) else refreshRecents()
+            when (section) {
+                Section.EVENTS -> loadEvents(force = true)
+                Section.HOME -> loadHome(force = true)
+                else -> refreshRecents()
+            }
             return
         }
         val k = kind
@@ -292,7 +304,30 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun closePlayer() {
         screen = Screen.Home
-        if (section == Section.RECENTS) refreshRecents()
+        if (section == Section.RECENTS || section == Section.HOME) refreshRecents()
+    }
+
+    // ---- Accueil ----
+
+    /** Accueil : reprendre + événements + tendances, chargés en parallèle. */
+    fun loadHome(force: Boolean = false) {
+        refreshRecents()
+        loadEvents(force)
+        val c = catalog ?: return
+        if (!force && trendingMovies.isNotEmpty()) return
+        trendingJob?.cancel()
+        trendingJob = viewModelScope.launch {
+            runCatching { trendingMovies = withContext(Dispatchers.Default) { trending(c.items(Kind.MOVIE)) } }
+            if (c.supportsSeries) runCatching { newSeries = withContext(Dispatchers.Default) { trending(c.items(Kind.SERIES)) } }
+        }
+    }
+
+    /** Récemment ajoutés au serveur, les mieux notés d'abord parmi les 120 plus récents. */
+    private fun trending(all: List<Item>): List<Item> {
+        if (all.none { it.added > 0 }) return all.takeLast(30).reversed() // M3U : les ajouts sont en fin de liste
+        val recent = all.filter { it.image != null }.sortedByDescending { it.added }.take(120)
+        val good = recent.filter { it.rating >= 6.0 }
+        return (if (good.size >= 12) good else recent).take(30)
     }
 
     private fun openSeries(item: Item) {

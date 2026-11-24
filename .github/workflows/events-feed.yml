@@ -1,0 +1,39 @@
+name: Flux événements (Nova Player)
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"   # toutes les 30 min
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "player/src/main/assets/events-config.json"
+      - "scripts/build_events_feed.py"
+      - ".github/workflows/events-feed.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: events-feed
+  cancel-in-progress: false
+
+jobs:
+  feed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construire events.json
+        run: python3 scripts/build_events_feed.py
+      # Branche « data » réécrite à chaque fois : pas d'historique qui grossit.
+      - name: Publier sur la branche data
+        run: |
+          mkdir -p /tmp/feed && cp events.json /tmp/feed/
+          cd /tmp/feed
+          git init -q -b data
+          git config user.name "nova-feed-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add events.json
+          git commit -q -m "Flux événements $(date -u +%FT%TZ)"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" data

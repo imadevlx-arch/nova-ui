@@ -73,7 +73,7 @@ fun RecentsPanel(vm: AppViewModel, posterMin: Dp, edge: Dp) {
 }
 
 @Composable
-private fun RecentCard(entry: ResumeEntry, onClick: () -> Unit, onLongClick: () -> Unit) {
+internal fun RecentCard(entry: ResumeEntry, onClick: () -> Unit, onLongClick: () -> Unit) {
     Column {
         Pressable(
             onClick, Modifier.fillMaxWidth().aspectRatio(2f / 3f), onLongClick = onLongClick,
@@ -155,7 +155,7 @@ private fun dayLabel(row: EventRow, now: Long): String {
 }
 
 @Composable
-private fun EventCard(row: EventRow, now: Long, onClick: () -> Unit) {
+internal fun EventCard(row: EventRow, now: Long, onClick: () -> Unit) {
     val e = row.event
     val live = e.isLive(now)
     val playable = row.channels.isNotEmpty()
@@ -215,5 +215,102 @@ fun EmptyState(title: String, text: String) {
         BasicText(title, style = TitleStyle.copy(fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center))
         Spacer(Modifier.height(8.dp))
         BasicText(text, style = MutedStyle.copy(fontSize = 15.sp, textAlign = TextAlign.Center), modifier = Modifier.widthIn(max = 420.dp))
+    }
+}
+
+// ---------- Accueil : tout en un coup d'œil ----------
+
+@Composable
+fun HomePanel(vm: AppViewModel, edge: Dp, compact: Boolean) {
+    val posterW = if (compact) 112.dp else 140.dp
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(22.dp),
+    ) {
+        // 1. Reprendre
+        if (vm.recents.isNotEmpty()) item {
+            HomeRow("Reprendre", edge, onSeeAll = { vm.selectSection(app.nova.player.Section.RECENTS) }) {
+                items(vm.recents.take(15)) { e ->
+                    Box(Modifier.width(posterW)) { RecentCard(e, onClick = { vm.playRecent(e) }, onLongClick = { vm.removeRecent(e) }) }
+                }
+            }
+        }
+        // 2. Événements
+        item {
+            val rows = vm.events
+            HomeRow(
+                if (rows.any { it.event.isLive() }) "Événements · en direct" else "Événements",
+                edge,
+                onSeeAll = { vm.selectSection(app.nova.player.Section.EVENTS) },
+            ) {
+                when {
+                    rows.isEmpty() && vm.eventsLoading -> item { RowNote("Chargement du programme…") }
+                    rows.isEmpty() && vm.eventsError != null -> item { RowNote(vm.eventsError!!) }
+                    rows.isEmpty() -> item { RowNote("Aucun grand match ni soirée UFC dans les 36 prochaines heures.") }
+                    else -> items(rows.take(12)) { row ->
+                        Box(Modifier.width(if (compact) 290.dp else 360.dp)) { EventCard(row, System.currentTimeMillis()) { vm.openEvent(row) } }
+                    }
+                }
+            }
+        }
+        // 3. Tendances
+        if (vm.trendingMovies.isNotEmpty()) item {
+            HomeRow("Tendances films", edge, onSeeAll = { vm.selectSection(app.nova.player.Section.MOVIE) }) {
+                items(vm.trendingMovies) { item -> Box(Modifier.width(posterW)) { PosterTile(item) { vm.open(item) } } }
+            }
+        }
+        if (vm.newSeries.isNotEmpty()) item {
+            HomeRow("Nouveautés séries", edge, onSeeAll = { vm.selectSection(app.nova.player.Section.SERIES) }) {
+                items(vm.newSeries) { item ->
+                    Box(Modifier.width(posterW)) { PosterTile(item) { vm.selectSection(app.nova.player.Section.SERIES); vm.open(item) } }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeRow(
+    title: String,
+    edge: Dp,
+    onSeeAll: () -> Unit,
+    content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit,
+) {
+    Column {
+        Row(Modifier.fillMaxWidth().padding(horizontal = edge), verticalAlignment = Alignment.CenterVertically) {
+            BasicText(title, style = TitleStyle.copy(fontSize = 19.sp, fontWeight = FontWeight.Bold), modifier = Modifier.weight(1f))
+            NovaButton("Tout voir", onSeeAll, padding = PaddingValues(horizontal = 12.dp, vertical = 6.dp))
+        }
+        Spacer(Modifier.height(10.dp))
+        androidx.compose.foundation.lazy.LazyRow(
+            contentPadding = PaddingValues(horizontal = edge, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun RowNote(text: String) {
+    BasicText(text, style = MutedStyle.copy(fontSize = 14.sp), modifier = Modifier.padding(vertical = 18.dp))
+}
+
+@Composable
+fun PosterTile(item: app.nova.player.data.Item, onClick: () -> Unit) {
+    Column {
+        Pressable(onClick, Modifier.fillMaxWidth().aspectRatio(2f / 3f), color = NovaColors.SapphireDeep, focusedColor = NovaColors.Sapphire, focusedScale = 1.07f, glow = true) {
+            BasicText(item.name, maxLines = 3, style = LabelStyle.copy(fontSize = 12.sp, textAlign = TextAlign.Center, color = NovaColors.TextMuted), modifier = Modifier.align(Alignment.Center).padding(8.dp))
+            if (item.image != null) AsyncImage(item.image, item.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            if (item.rating > 0) {
+                BasicText(
+                    "★ " + "%.1f".format(item.rating),
+                    style = LabelStyle.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).background(Color(0xCC050B1C), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        BasicText(item.name, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LabelStyle.copy(fontSize = 12.sp))
     }
 }

@@ -1,17 +1,156 @@
 {
-  "_comment": "Diffuseurs France saison 2026-2027. Modifiable sans nouvelle APK : l'app relit ce fichier sur GitHub (branche main). 'channels' = mots cherchés dans les noms de chaînes, du plus précis au plus large. 'league' = nom exact de la compétition sur TheSportsDB.",
+  "_comment": "Diffuseurs France saison 2026-2027. Modifiable sans nouvelle APK. 'id' = identifiant TheSportsDB de la compétition (obligatoire). 'channels' = mots cherchés dans les noms de chaînes, du plus précis au plus large.",
   "version": 1,
   "competitions": [
-    { "name": "Ligue des champions", "league": "UEFA Champions League", "sport": "foot", "priority": 100, "hours": 2.2, "channels": ["canal+ foot", "canal+ sport 360", "canal+ sport", "canal+ live", "canal+"] },
-    { "name": "Ligue 1", "league": "French Ligue 1", "sport": "foot", "priority": 95, "hours": 2.2, "channels": ["ligue 1+", "ligue1+", "ligue 1 plus", "l1+"] },
-    { "name": "Premier League", "league": "English Premier League", "sport": "foot", "priority": 90, "hours": 2.2, "channels": ["canal+ premier league", "canal+ foot", "canal+ sport 360", "canal+ sport", "canal+"] },
-    { "name": "Ligue Europa", "league": "UEFA Europa League", "sport": "foot", "priority": 85, "hours": 2.2, "channels": ["canal+ foot", "canal+ sport 360", "canal+ sport", "canal+ live", "canal+"] },
-    { "name": "Liga", "league": "Spanish La Liga", "sport": "foot", "priority": 80, "hours": 2.2, "channels": ["dazn", "espn", "disney+"] },
-    { "name": "Serie A", "league": "Italian Serie A", "sport": "foot", "priority": 75, "hours": 2.2, "channels": ["dazn"] },
-    { "name": "Bundesliga", "league": "German Bundesliga", "sport": "foot", "priority": 70, "hours": 2.2, "channels": ["bein sports 1", "bein sports 2", "bein sports 3", "bein sports", "bein"] },
-    { "name": "Ligue Conférence", "league": "UEFA Europa Conference League", "sport": "foot", "priority": 60, "hours": 2.2, "channels": ["canal+ foot", "canal+ sport 360", "canal+ sport", "canal+ live", "canal+"] },
-    { "name": "Ligue 2", "league": "French Ligue 2", "sport": "foot", "priority": 50, "hours": 2.2, "channels": ["bein sports 1", "bein sports 2", "bein sports 3", "bein sports", "bein"] },
-    { "name": "UFC", "league": "UFC", "sport": "mma", "priority": 98, "hours": 6, "channels": ["rmc sport 1", "rmc sport", "ufc"] }
+    {
+      "name": "Ligue des champions",
+      "league": "UEFA Champions League",
+      "sport": "foot",
+      "priority": 100,
+      "hours": 2.2,
+      "channels": [
+        "canal+ foot",
+        "canal+ sport 360",
+        "canal+ sport",
+        "canal+ live",
+        "canal+"
+      ],
+      "id": 4480
+    },
+    {
+      "name": "Ligue 1",
+      "league": "French Ligue 1",
+      "sport": "foot",
+      "priority": 95,
+      "hours": 2.2,
+      "channels": [
+        "ligue 1+",
+        "ligue1+",
+        "ligue 1 plus",
+        "l1+"
+      ],
+      "id": 4334
+    },
+    {
+      "name": "Premier League",
+      "league": "English Premier League",
+      "sport": "foot",
+      "priority": 90,
+      "hours": 2.2,
+      "channels": [
+        "canal+ premier league",
+        "canal+ foot",
+        "canal+ sport 360",
+        "canal+ sport",
+        "canal+"
+      ],
+      "id": 4328
+    },
+    {
+      "name": "Ligue Europa",
+      "league": "UEFA Europa League",
+      "sport": "foot",
+      "priority": 85,
+      "hours": 2.2,
+      "channels": [
+        "canal+ foot",
+        "canal+ sport 360",
+        "canal+ sport",
+        "canal+ live",
+        "canal+"
+      ],
+      "id": 4481
+    },
+    {
+      "name": "Liga",
+      "league": "Spanish La Liga",
+      "sport": "foot",
+      "priority": 80,
+      "hours": 2.2,
+      "channels": [
+        "dazn",
+        "espn",
+        "disney+"
+      ],
+      "id": 4335
+    },
+    {
+      "name": "Serie A",
+      "league": "Italian Serie A",
+      "sport": "foot",
+      "priority": 75,
+      "hours": 2.2,
+      "channels": [
+        "dazn"
+      ],
+      "id": 4332
+    },
+    {
+      "name": "Bundesliga",
+      "league": "German Bundesliga",
+      "sport": "foot",
+      "priority": 70,
+      "hours": 2.2,
+      "channels": [
+        "bein sports 1",
+        "bein sports 2",
+        "bein sports 3",
+        "bein sports",
+        "bein"
+      ],
+      "id": 4331
+    },
+    {
+      "name": "Ligue Conférence",
+      "league": "UEFA Europa Conference League",
+      "sport": "foot",
+      "priority": 60,
+      "hours": 2.2,
+      "channels": [
+        "canal+ foot",
+        "canal+ sport 360",
+        "canal+ sport",
+        "canal+ live",
+        "canal+"
+      ],
+      "id": 5071
+    },
+    {
+      "name": "Ligue 2",
+      "league": "French Ligue 2",
+      "sport": "foot",
+      "priority": 50,
+      "hours": 2.2,
+      "channels": [
+        "bein sports 1",
+        "bein sports 2",
+        "bein sports 3",
+        "bein sports",
+        "bein"
+      ],
+      "id": 4401
+    },
+    {
+      "name": "UFC",
+      "league": "UFC",
+      "sport": "mma",
+      "priority": 98,
+      "hours": 6,
+      "channels": [
+        "rmc sport 1",
+        "rmc sport",
+        "ufc"
+      ],
+      "id": 4443
+    }
   ],
-  "eventCategoryWords": ["event", "evenement", "événement", "ppv", "live event", "match", "sport live"]
+  "eventCategoryWords": [
+    "event",
+    "evenement",
+    "événement",
+    "ppv",
+    "live event",
+    "match",
+    "sport live"
+  ]
 }

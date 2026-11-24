@@ -70,6 +70,8 @@ class XtreamCatalog(private val account: Account.Xtream) : Catalog {
                     categoryId = o["category_id"].orEmpty(),
                     kind = kind,
                     ext = o["container_extension"],
+                    added = ((if (kind == Kind.SERIES) o["last_modified"] else o["added"])?.toLongOrNull() ?: 0L) * 1000,
+                    rating = (o["rating_5based"]?.toDoubleOrNull()?.times(2) ?: o["rating"]?.toDoubleOrNull()) ?: 0.0,
                 )
             }
         }

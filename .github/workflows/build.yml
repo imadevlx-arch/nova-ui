@@ -7,6 +7,8 @@ on:
       - "player/**"
       - "backend/**"
       - ".github/workflows/build-player.yml"
+      - ".github/workflows/events-feed.yml"
+      - "scripts/**"
   workflow_dispatch:
 
 permissions:

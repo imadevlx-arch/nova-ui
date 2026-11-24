@@ -54,6 +54,7 @@ import java.util.Locale
 @Composable
 fun HomeScreen(vm: AppViewModel) {
     BackHandler(enabled = vm.openSeries != null) { vm.closeSeries() }
+    BackHandler(enabled = !vm.section.tab) { vm.selectSection(Section.HOME) }
     BackHandler(enabled = vm.openSeries == null && vm.selectedCategory != null) { vm.selectCategory(null) }
 
     BoxWithConstraints(
@@ -88,9 +89,13 @@ private fun CompactHome(vm: AppViewModel) {
             Spacer(Modifier.height(8.dp))
         }
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(visibleSections(vm)) { sec -> Tab(sec.label, vm.section == sec, Modifier.width(118.dp)) { vm.selectSection(sec) } }
+            items(visibleSections(vm)) { sec -> Tab(sec.label, vm.section == sec || (!vm.section.tab && sec == Section.HOME), Modifier.width(104.dp)) { vm.selectSection(sec) } }
         }
-        if (vm.section == Section.RECENTS) {
+        if (!vm.section.tab) SubPageHeader(vm, 16.dp)
+        if (vm.section == Section.HOME) {
+            Spacer(Modifier.height(8.dp))
+            HomePanel(vm, edge = 16.dp, compact = true)
+        } else if (vm.section == Section.RECENTS) {
             RecentsPanel(vm, posterMin = 108.dp, edge = 16.dp)
         } else if (vm.section == Section.EVENTS) {
             EventsPanel(vm, edge = 16.dp)
@@ -110,7 +115,7 @@ private fun CompactHome(vm: AppViewModel) {
 }
 
 private fun visibleSections(vm: AppViewModel): List<Section> =
-    Section.entries.filter { it != Section.SERIES || vm.supportsSeries }
+    Section.entries.filter { it.tab && (it != Section.SERIES || vm.supportsSeries) }
 
 @Composable
 private fun Tab(text: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
@@ -141,17 +146,19 @@ private fun WideHome(vm: AppViewModel) {
             BasicText("NOVA", style = NovaType.RailLogo)
             Spacer(Modifier.height(28.dp))
             val cell = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-            visibleSections(vm).forEach { sec -> Tab(sec.label, vm.section == sec, cell) { vm.selectSection(sec) } }
+            visibleSections(vm).forEach { sec -> Tab(sec.label, vm.section == sec || (!vm.section.tab && sec == Section.HOME), cell) { vm.selectSection(sec) } }
             Spacer(Modifier.weight(1f))
             ExpiryLine(vm)
             Spacer(Modifier.height(12.dp))
             NovaButton("Recharger", { vm.reload() }, modifier = cell)
             NovaButton("Déconnexion", { vm.logout() }, modifier = cell)
         }
-        if (vm.section == Section.RECENTS) {
-            Box(Modifier.padding(top = 24.dp)) { RecentsPanel(vm, posterMin = 150.dp, edge = 24.dp) }
+        if (vm.section == Section.HOME) {
+            Box(Modifier.padding(top = 20.dp)) { HomePanel(vm, edge = 24.dp, compact = false) }
+        } else if (vm.section == Section.RECENTS) {
+            Column(Modifier.padding(top = 20.dp)) { SubPageHeader(vm, 24.dp); RecentsPanel(vm, posterMin = 150.dp, edge = 24.dp) }
         } else if (vm.section == Section.EVENTS) {
-            Box(Modifier.padding(top = 24.dp)) { EventsPanel(vm, edge = 24.dp) }
+            Column(Modifier.padding(top = 20.dp)) { SubPageHeader(vm, 24.dp); EventsPanel(vm, edge = 24.dp) }
         } else if (vm.kind == Kind.SERIES && vm.openSeries != null) {
             SeriesPanel(vm, vm.openSeries!!, compact = false)
         } else {
@@ -165,6 +172,15 @@ private fun WideHome(vm: AppViewModel) {
             }
             Box(Modifier.padding(top = 16.dp)) { Content(vm, channelMin = 170.dp, posterMin = 120.dp, edge = 20.dp) }
         }
+    }
+}
+
+@Composable
+private fun SubPageHeader(vm: AppViewModel, edge: Dp) {
+    Row(Modifier.fillMaxWidth().padding(start = edge, end = edge, top = 10.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        NovaButton("← Accueil", { vm.selectSection(Section.HOME) }, padding = PaddingValues(horizontal = 12.dp, vertical = 8.dp))
+        Spacer(Modifier.width(14.dp))
+        BasicText(vm.section.label, style = TitleStyle.copy(fontSize = 22.sp, fontWeight = FontWeight.Bold))
     }
 }
 

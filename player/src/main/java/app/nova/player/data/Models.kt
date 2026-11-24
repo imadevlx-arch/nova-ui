@@ -26,6 +26,9 @@ data class Item(
     /** URL directe (M3U) ; null pour Xtream, l'URL est construite à la lecture. */
     val url: String? = null,
     val ext: String? = null,
+    /** Date d'ajout sur le serveur (ms), 0 si inconnue. Sert aux « Tendances / Nouveautés ». */
+    val added: Long = 0,
+    val rating: Double = 0.0,
 )
 
 data class Episode(

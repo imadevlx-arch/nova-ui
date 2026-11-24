@@ -2,14 +2,8 @@ package app.nova.player.data
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.net.URLEncoder
 import java.text.Normalizer
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -17,6 +11,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 data class Competition(
+    val id: Int,
     val name: String,
     val league: String,
     val sport: String,
@@ -53,6 +48,8 @@ object EventsRepository {
 
     private const val CONFIG_URL = "https://raw.githubusercontent.com/imadevlx-arch/nova-ui/main/player/src/main/assets/events-config.json"
     private const val TSDB = "https://www.thesportsdb.com/api/v1/json/123"
+    /** Flux construit toutes les 30 min par GitHub Actions (scripts/build_events_feed.py). */
+    private const val FEED_URL = "https://raw.githubusercontent.com/imadevlx-arch/nova-ui/data/events.json"
     private const val CACHE_MS = 20 * 60 * 1000L
 
     private var cachedEvents: Pair<Long, List<SportEvent>>? = null
@@ -71,6 +68,7 @@ object EventsRepository {
             val c = comps.getJSONObject(i)
             val ch = c.getJSONArray("channels")
             Competition(
+                id = c.optInt("id"),
                 name = c.getString("name"),
                 league = c.getString("league"),
                 sport = c.optString("sport", "foot"),
@@ -88,27 +86,50 @@ object EventsRepository {
         val now = System.currentTimeMillis()
         cachedEvents?.let { (at, list) -> if (!force && now - at < CACHE_MS) return list }
 
-        val day = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
-        val dates = listOf(-1, 0, 1).map { day.format(Date(now + it * 86_400_000L)) }
-        val gate = Semaphore(3) // API gratuite : 30 requêtes / minute
-        val all = coroutineScope {
-            config.competitions.flatMap { comp ->
-                // La veille seulement pour les soirées longues (UFC la nuit)
-                dates.filterIndexed { i, _ -> i > 0 || comp.hours > 3 }.map { d ->
-                    async { gate.withPermit { runCatching { fetchDay(comp, d) }.getOrElse { emptyList() } } }
-                }
-            }.awaitAll().flatten()
-        }
-        val list = all
+        // 1) Flux central (une requête). 2) Repli : API directe, aujourd'hui seulement, à petite vitesse.
+        val raw = runCatching { fromFeed(config) }.getOrNull()?.takeIf { it.isNotEmpty() }
+            ?: direct(config, now)
+        val list = raw
             .distinctBy { it.id }
             .filter { it.end > now && it.start < now + 36 * 3_600_000L }
             .sortedWith(compareByDescending<SportEvent> { it.isLive(now) }.thenBy { it.start }.thenByDescending { it.competition.priority })
-        cachedEvents = now to list
+        if (list.isNotEmpty()) cachedEvents = now to list
         return list
     }
 
+    private suspend fun fromFeed(config: EventsConfig): List<SportEvent> = Http.get(FEED_URL) { r ->
+        val byName = config.competitions.associateBy { it.name }
+        val arr = JSONObject(r.body!!.string()).getJSONArray("events")
+        (0 until arr.length()).mapNotNull { i ->
+            val e = arr.getJSONObject(i)
+            val comp = byName[e.optString("competition")] ?: return@mapNotNull null
+            SportEvent(
+                id = e.optString("id"),
+                title = e.optString("title"),
+                home = e.optString("home").takeIf { it.isNotBlank() && it != "null" },
+                away = e.optString("away").takeIf { it.isNotBlank() && it != "null" },
+                competition = comp,
+                start = e.getLong("start"),
+                end = e.getLong("end"),
+                homeBadge = e.optString("homeBadge").takeIf { it.startsWith("http") },
+                awayBadge = e.optString("awayBadge").takeIf { it.startsWith("http") },
+            )
+        }
+    }
+
+    private suspend fun direct(config: EventsConfig, now: Long): List<SportEvent> {
+        val day = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
+        val today = day.format(Date(now))
+        val out = ArrayList<SportEvent>()
+        for (comp in config.competitions.sortedByDescending { it.priority }) {
+            out += runCatching { fetchDay(comp, today) }.getOrElse { emptyList() }
+            kotlinx.coroutines.delay(2_200) // limite Cloudflare de l'API gratuite
+        }
+        return out
+    }
+
     private suspend fun fetchDay(comp: Competition, date: String): List<SportEvent> {
-        val url = "$TSDB/eventsday.php?d=$date&l=${URLEncoder.encode(comp.league, "UTF-8")}"
+        val url = "$TSDB/eventsday.php?d=$date&l=${comp.id}"
         return Http.get(url) { r ->
             val o = JSONObject(r.body!!.string())
             val arr = o.optJSONArray("events") ?: return@get emptyList<SportEvent>()
