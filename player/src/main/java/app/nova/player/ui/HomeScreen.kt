@@ -109,7 +109,6 @@ private fun CompactHome(vm: AppViewModel) {
     }
 }
 
-@Composable
 private fun visibleSections(vm: AppViewModel): List<Section> =
     Section.entries.filter { it != Section.SERIES || vm.supportsSeries }
 
