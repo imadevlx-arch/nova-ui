@@ -228,6 +228,25 @@ fun HomePanel(vm: AppViewModel, edge: Dp, compact: Boolean) {
         contentPadding = PaddingValues(top = 8.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
+        vm.update?.let { info ->
+            item {
+                Row(
+                    Modifier.padding(horizontal = edge).fillMaxWidth()
+                        .background(NovaColors.Jade.copy(alpha = 0.12f), RoundedCornerShape(16.dp)).padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        BasicText("Nouvelle version ${info.versionName}", style = BodyStyle.copy(fontWeight = FontWeight.Bold))
+                        val p = vm.updateProgress
+                        BasicText(
+                            vm.updateError ?: if (p != null) "Téléchargement… ${(p * 100).toInt()} %" else "Corrections et nouveautés prêtes à installer.",
+                            style = MutedStyle,
+                        )
+                    }
+                    NovaButton("Mettre à jour", { vm.installUpdate() }, primary = true)
+                }
+            }
+        }
         // 1. Reprendre
         if (vm.recents.isNotEmpty()) item {
             HomeRow("Reprendre", edge, onSeeAll = { vm.selectSection(app.nova.player.Section.RECENTS) }) {

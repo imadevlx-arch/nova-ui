@@ -21,6 +21,8 @@ import app.nova.player.data.Kind
 import app.nova.player.data.NovaException
 import app.nova.player.data.ResumeEntry
 import app.nova.player.data.ResumeStore
+import app.nova.player.data.UpdateInfo
+import app.nova.player.data.Updater
 import app.nova.player.data.catalog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -101,12 +103,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var eventsError by mutableStateOf<String?>(null); private set
     private var eventsJob: Job? = null
 
+    // Mise à jour intégrée
+    var update by mutableStateOf<UpdateInfo?>(null); private set
+    var updateProgress by mutableStateOf<Float?>(null); private set
+    var updateError by mutableStateOf<String?>(null); private set
+
     val supportsSeries: Boolean get() = catalog?.supportsSeries == true
 
     /** Préfixe des clés de reprise : un compte = ses propres récents. */
     private val accountPrefix: String get() = (account?.label?.hashCode() ?: 0).toString(16) + ":"
 
     init {
+        viewModelScope.launch { update = Updater.check() }
         store.load()?.let { saved ->
             enter(saved)
             viewModelScope.launch { runCatching { status = catalog?.status() } }
@@ -305,6 +313,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun closePlayer() {
         screen = Screen.Home
         if (section == Section.RECENTS || section == Section.HOME) refreshRecents()
+    }
+
+    fun installUpdate() {
+        val info = update ?: return
+        if (updateProgress != null) return
+        updateError = null
+        updateProgress = 0f
+        viewModelScope.launch {
+            try {
+                Updater.downloadAndInstall(getApplication(), info) { p -> updateProgress = p }
+            } catch (e: Exception) {
+                updateError = e.message ?: "Mise à jour impossible."
+            } finally {
+                updateProgress = null
+            }
+        }
     }
 
     // ---- Accueil ----
