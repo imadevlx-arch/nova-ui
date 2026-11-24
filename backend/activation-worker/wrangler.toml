@@ -1,0 +1,11 @@
+name = "nova-activation"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+# 1) npx wrangler kv namespace create CODES   → recopier l'id ci-dessous
+# 2) npx wrangler secret put ADMIN_TOKEN       → un long mot de passe aléatoire
+# 3) npx wrangler deploy                       → noter l'URL https://nova-activation.<compte>.workers.dev
+# 4) GitHub > Settings > Variables > Actions : NOVA_ACTIVATION_URL = cette URL, puis relancer le build
+[[kv_namespaces]]
+binding = "CODES"
+id = "REMPLACER_PAR_ID_KV"
