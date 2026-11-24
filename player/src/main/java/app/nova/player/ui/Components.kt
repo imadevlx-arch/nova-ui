@@ -4,7 +4,8 @@ import android.graphics.Bitmap
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -69,6 +70,7 @@ val LabelStyle = TextStyle(fontFamily = NovaFonts.Body, fontSize = 14.sp, color 
  * Surface cliquable universelle : télécommande (focus + OK) ET tactile (tap).
  * Les Surface de androidx.tv ne gèrent pas le toucher, d'où ce composant maison.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Pressable(
     onClick: () -> Unit,
@@ -78,6 +80,7 @@ fun Pressable(
     focusedColor: Color = NovaColors.Sapphire.copy(alpha = 0.55f),
     focusedScale: Float = 1.04f,
     glow: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -94,7 +97,7 @@ fun Pressable(
             .clip(shape)
             .background(if (focused) focusedColor else color)
             .border(if (focused) 2.dp else 1.dp, if (focused) NovaColors.Jade else NovaColors.GlassStroke, shape)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+            .combinedClickable(interactionSource = interaction, indication = null, onLongClick = onLongClick, onClick = onClick),
         content = content,
     )
 }

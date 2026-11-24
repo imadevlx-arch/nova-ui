@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.nova.player.AppViewModel
+import app.nova.player.Section
 import app.nova.player.data.Item
 import app.nova.player.data.Kind
 import app.nova.player.ui.theme.NovaColors
@@ -86,10 +87,14 @@ private fun CompactHome(vm: AppViewModel) {
             }
             Spacer(Modifier.height(8.dp))
         }
-        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            KindTabs(vm, Modifier.weight(1f))
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(visibleSections(vm)) { sec -> Tab(sec.label, vm.section == sec, Modifier.width(118.dp)) { vm.selectSection(sec) } }
         }
-        if (vm.kind == Kind.SERIES && vm.openSeries != null) {
+        if (vm.section == Section.RECENTS) {
+            RecentsPanel(vm, posterMin = 108.dp, edge = 16.dp)
+        } else if (vm.section == Section.EVENTS) {
+            EventsPanel(vm, edge = 16.dp)
+        } else if (vm.kind == Kind.SERIES && vm.openSeries != null) {
             SeriesPanel(vm, vm.openSeries!!, compact = true)
         } else {
             LazyRow(
@@ -105,11 +110,8 @@ private fun CompactHome(vm: AppViewModel) {
 }
 
 @Composable
-private fun KindTabs(vm: AppViewModel, cell: Modifier) {
-    Tab("Direct", vm.kind == Kind.LIVE, cell) { vm.selectKind(Kind.LIVE) }
-    Tab("Films", vm.kind == Kind.MOVIE, cell) { vm.selectKind(Kind.MOVIE) }
-    if (vm.supportsSeries) Tab("Séries", vm.kind == Kind.SERIES, cell) { vm.selectKind(Kind.SERIES) }
-}
+private fun visibleSections(vm: AppViewModel): List<Section> =
+    Section.entries.filter { it != Section.SERIES || vm.supportsSeries }
 
 @Composable
 private fun Tab(text: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
@@ -140,14 +142,18 @@ private fun WideHome(vm: AppViewModel) {
             BasicText("NOVA", style = NovaType.RailLogo)
             Spacer(Modifier.height(28.dp))
             val cell = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-            KindTabs(vm, cell)
+            visibleSections(vm).forEach { sec -> Tab(sec.label, vm.section == sec, cell) { vm.selectSection(sec) } }
             Spacer(Modifier.weight(1f))
             ExpiryLine(vm)
             Spacer(Modifier.height(12.dp))
             NovaButton("Recharger", { vm.reload() }, modifier = cell)
             NovaButton("Déconnexion", { vm.logout() }, modifier = cell)
         }
-        if (vm.kind == Kind.SERIES && vm.openSeries != null) {
+        if (vm.section == Section.RECENTS) {
+            Box(Modifier.padding(top = 24.dp)) { RecentsPanel(vm, posterMin = 150.dp, edge = 24.dp) }
+        } else if (vm.section == Section.EVENTS) {
+            Box(Modifier.padding(top = 24.dp)) { EventsPanel(vm, edge = 24.dp) }
+        } else if (vm.kind == Kind.SERIES && vm.openSeries != null) {
             SeriesPanel(vm, vm.openSeries!!, compact = false)
         } else {
             LazyColumn(

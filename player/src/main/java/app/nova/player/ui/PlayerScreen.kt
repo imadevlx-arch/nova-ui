@@ -89,6 +89,7 @@ fun PlayerScreen(vm: AppViewModel, request: PlayRequest) {
             override fun onPlaybackStateChanged(state: Int) {
                 buffering = state == Player.STATE_BUFFERING
                 if (state == Player.STATE_READY) { error = null; retries[0] = 0 }
+                if (state == Player.STATE_ENDED) request.resumeKey?.let { vm.savePosition(it, player.duration, player.duration) }
             }
 
             override fun onPlayerError(e: PlaybackException) {
@@ -116,14 +117,24 @@ fun PlayerScreen(vm: AppViewModel, request: PlayRequest) {
             }
         }
         player.addListener(listener)
-        onDispose { player.removeListener(listener); player.release() }
+        onDispose {
+            // Sauvegarde finale de la position avant de quitter le lecteur
+            request.resumeKey?.let { key ->
+                val d = player.duration
+                if (player.currentPosition > 0) vm.savePosition(key, player.currentPosition, if (d > 0) d else 0)
+            }
+            player.removeListener(listener)
+            player.release()
+        }
     }
 
     // Nouvelle URL (premier lancement ou zapping)
     LaunchedEffect(url) {
         error = null
         retries[0] = 0
-        player.setMediaItem(MediaItem.fromUri(url))
+        // Reprise à la seconde près pour les films / épisodes déjà entamés
+        val start = if (url == request.url) request.startPosition else 0L
+        if (start > 10_000) player.setMediaItem(MediaItem.fromUri(url), start) else player.setMediaItem(MediaItem.fromUri(url))
         player.prepare()
         if (url == request.url) overlayTick++
     }
@@ -133,6 +144,16 @@ fun PlayerScreen(vm: AppViewModel, request: PlayRequest) {
         showOverlay = true
         delay(4_000)
         showOverlay = false
+    }
+
+    // Sauvegarde périodique (coupure de courant, appli tuée…)
+    LaunchedEffect(request.resumeKey) {
+        val key = request.resumeKey ?: return@LaunchedEffect
+        while (true) {
+            delay(5_000)
+            val d = player.duration
+            if (player.isPlaying && player.currentPosition > 0) vm.savePosition(key, player.currentPosition, if (d > 0) d else 0)
+        }
     }
 
     BackHandler { vm.closePlayer() }
@@ -228,6 +249,7 @@ fun PlayerScreen(vm: AppViewModel, request: PlayRequest) {
                 }
                 Column {
                     BasicText(request.title, style = BodyStyle.copy(fontSize = 20.sp, fontWeight = FontWeight.SemiBold))
+                    if (request.startPosition > 10_000 && url == request.url) BasicText("Reprise à ${clock(request.startPosition)}", style = MutedStyle.copy(color = NovaColors.Jade))
                     if (request.live) BasicText("▲ ▼ ou glisser pour zapper · OK infos", style = MutedStyle)
                 }
             }
