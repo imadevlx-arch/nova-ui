@@ -30,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -50,7 +52,11 @@ private enum class Method(val label: String) { CODE("Code"), PHONE("Téléphone"
 
 @Composable
 fun LoginScreen(vm: AppViewModel) {
-    val methods = remember { Method.entries.filter { it != Method.CODE || ActivationClient.enabled } }
+    val tv = LocalContext.current.isTv()
+    // Sur téléphone, la connexion « depuis le téléphone » n'a pas de sens : on colle directement.
+    val methods = remember(tv) {
+        Method.entries.filter { (it != Method.CODE || ActivationClient.enabled) && (it != Method.PHONE || tv) }
+    }
     var method by rememberSaveable { mutableStateOf(methods.first()) }
     val firstFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
@@ -60,12 +66,12 @@ fun LoginScreen(vm: AppViewModel) {
             Brush.radialGradient(listOf(NovaColors.SapphireDeep, NovaColors.Abyss), radius = 1400f),
         ),
     ) {
-        Row(Modifier.fillMaxSize().padding(horizontal = NovaSpace.ContentX, vertical = 40.dp)) {
+        Row(Modifier.fillMaxSize().padding(horizontal = if (tv) NovaSpace.ContentX else 20.dp, vertical = if (tv) 40.dp else 16.dp)) {
             // Colonne gauche : titre + choix de méthode
-            Column(Modifier.width(300.dp).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+            Column(Modifier.width(if (tv) 300.dp else 210.dp).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
                 BasicText("NOVA", style = NovaType.Wordmark.copy(color = NovaColors.Jade))
                 Spacer(Modifier.height(10.dp))
-                BasicText("Connexion", style = NovaType.Hero.copy(fontSize = 46.sp))
+                BasicText("Connexion", style = NovaType.Hero.copy(fontSize = if (tv) 46.sp else 32.sp))
                 Spacer(Modifier.height(6.dp))
                 BasicText("Choisis comment tu as reçu ton abonnement.", style = MutedStyle.copy(fontSize = 15.sp))
                 Spacer(Modifier.height(28.dp))
@@ -75,20 +81,20 @@ fun LoginScreen(vm: AppViewModel) {
                         onClick = { method = m; vm.clearLoginError() },
                         selected = method == m,
                         modifier = Modifier
-                            .width(220.dp)
+                            .width(if (tv) 220.dp else 180.dp)
                             .padding(vertical = 5.dp)
                             .then(if (i == 0) Modifier.focusRequester(firstFocus) else Modifier),
                     )
                 }
             }
-            Spacer(Modifier.width(48.dp))
+            Spacer(Modifier.width(if (tv) 48.dp else 16.dp))
             // Panneau droit glass
             Column(
                 Modifier
                     .weight(1f)
                     .fillMaxHeight()
                     .background(NovaColors.GlassFill, RoundedCornerShape(24.dp))
-                    .padding(36.dp),
+                    .padding(if (tv) 36.dp else 20.dp),
                 verticalArrangement = Arrangement.Center,
             ) {
                 when (method) {
@@ -181,10 +187,14 @@ private fun XtreamPanel(vm: AppViewModel) {
         )
     }
     Spacer(Modifier.height(18.dp))
-    NovaButton("Se connecter", onClick = {
-        // Lien complet collé dans « Serveur » et autres champs vides : on se débrouille.
-        if (user.isBlank() && pass.isBlank()) vm.loginWithText(server) else vm.loginWithXtream(server, user, pass)
-    }, primary = true)
+    Row {
+        NovaButton("Se connecter", onClick = {
+            // Lien complet collé dans « Serveur » et autres champs vides : on se débrouille.
+            if (user.isBlank() && pass.isBlank()) vm.loginWithText(server) else vm.loginWithXtream(server, user, pass)
+        }, primary = true)
+        Spacer(Modifier.width(12.dp))
+        PasteButton { pasted -> vm.loginWithText(pasted) }
+    }
 }
 
 @Composable
@@ -193,7 +203,20 @@ private fun M3uPanel(vm: AppViewModel) {
     PanelTitle("Lien M3U", "Les liens get.php sont convertis en Xtream : films et séries en plus.")
     NovaTextField(link, { link = it }, "Lien de la playlist", Modifier.fillMaxWidth(), imeAction = ImeAction.Go, onDone = { vm.loginWithText(link) })
     Spacer(Modifier.height(18.dp))
-    NovaButton("Charger", onClick = { vm.loginWithText(link) }, primary = true)
+    Row {
+        NovaButton("Charger", onClick = { vm.loginWithText(link) }, primary = true)
+        Spacer(Modifier.width(12.dp))
+        PasteButton { pasted -> link = pasted; vm.loginWithText(pasted) }
+    }
+}
+
+/** Colle le presse-papiers (lien ou message WhatsApp copié) et lance la connexion. */
+@Composable
+private fun PasteButton(onPaste: (String) -> Unit) {
+    val clipboard = LocalClipboardManager.current
+    NovaButton("Coller et connecter", onClick = {
+        clipboard.getText()?.text?.takeIf { it.isNotBlank() }?.let(onPaste)
+    })
 }
 
 @Composable

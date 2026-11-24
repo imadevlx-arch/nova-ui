@@ -37,6 +37,9 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -180,6 +183,24 @@ fun PlayerScreen(vm: AppViewModel, request: PlayRequest) {
             }
         }
 
+        // Tactile (téléphone) : glisser vers le haut/bas pour zapper, toucher pour les infos.
+        if (request.live) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .pointerInput(request.url) {
+                        var total = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { total = 0f },
+                            onDragEnd = {
+                                if (total < -120f) vm.zap(request, +1) else if (total > 120f) vm.zap(request, -1)
+                            },
+                        ) { _, dy -> total += dy }
+                    }
+                    .pointerInput(Unit) { detectTapGestures { overlayTick++ } },
+            )
+        }
+
         AnimatedVisibility(
             visible = showOverlay,
             enter = fadeIn(),
@@ -201,7 +222,7 @@ fun PlayerScreen(vm: AppViewModel, request: PlayRequest) {
                 }
                 Column {
                     BasicText(request.title, style = BodyStyle.copy(fontSize = 20.sp, fontWeight = FontWeight.SemiBold))
-                    if (request.live) BasicText("▲ ▼ zapper · OK infos", style = MutedStyle)
+                    if (request.live) BasicText("▲ ▼ ou glisser pour zapper · OK infos", style = MutedStyle)
                 }
             }
         }
